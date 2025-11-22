@@ -12,7 +12,19 @@ Bootstrap repository for setting up development environment.
 
 - Ubuntu/Debian system with sudo access
 - Internet connection
-- GitHub Personal Access Token for private repository access
+- GitHub Personal Access Token with Contents: Read permission for joel-snips repository
+
+### PAT Setup
+
+Generate a Personal Access Token at: https://github.com/settings/personal-access-tokens
+
+**Required permissions:**
+- Contents: Read (for repository access)
+
+**For fine-grained tokens:**
+1. Select "Fine-grained personal access tokens"
+2. Choose resource access for 'joelagnel/joel-snips' repository
+3. Grant "Contents" permission with "Read" access
 
 ## What it does
 

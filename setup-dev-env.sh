@@ -1,8 +1,65 @@
 #!/bin/bash
 # Bootstrap script for setting up development environment
 # Installs ansible and clones joel-snips repository
+#
+# Usage: ./setup-dev-env.sh [--help]
+#
+# Prerequisites:
+# - Ubuntu/Debian system with sudo access
+# - GitHub Personal Access Token with Contents: Read permission for joel-snips repository
+#
+# Generate PAT at: https://github.com/settings/personal-access-tokens
+# Required permissions: Contents: Read (for repository access)
 
 set -euo pipefail
+
+show_help() {
+    cat << EOF
+setup-dev-env.sh - Bootstrap development environment
+
+DESCRIPTION:
+    Sets up development environment by installing ansible and cloning the joel-snips repository.
+
+USAGE:
+    ./setup-dev-env.sh [--help]
+
+PREREQUISITES:
+    - Ubuntu/Debian system with sudo access
+    - Internet connection
+    - GitHub Personal Access Token (PAT) with proper permissions
+
+PAT REQUIREMENTS:
+    You need a GitHub Personal Access Token with the following permissions:
+    - Contents: Read (to clone the joel-snips repository)
+
+    Generate a new PAT at: https://github.com/settings/personal-access-tokens
+
+    For fine-grained tokens:
+    1. Select "Fine-grained personal access tokens"
+    2. Choose resource access for 'joelagnel/joel-snips' repository
+    3. Grant "Contents" permission with "Read" access
+
+WHAT IT DOES:
+    - Updates package manager (apt update)
+    - Installs ansible if not present
+    - Creates ~/repo/ directory
+    - Backs up existing joel-snips directory if present
+    - Clones joel-snips repository using your PAT
+    - Runs ansible test playbook (if available)
+
+OPTIONS:
+    --help    Show this help message
+
+AUTHOR:
+    Joel Fernandes <joel@joelfernandes.org>
+EOF
+}
+
+# Check for help flag
+if [[ "${1:-}" == "--help" ]]; then
+    show_help
+    exit 0
+fi
 
 # Colors for output
 RED='\033[0;31m'
@@ -74,7 +131,9 @@ fi
 
 # Prompt for GitHub PAT
 log_info "GitHub Personal Access Token required to clone joel-snips repository"
-echo "You can generate one at: https://github.com/settings/personal-access-tokens"
+echo "Generate one at: https://github.com/settings/personal-access-tokens"
+echo "Required permissions: Contents: Read (for repository access)"
+echo "For fine-grained tokens: Select 'joelagnel/joel-snips' repository access"
 echo -n "Enter your GitHub PAT: "
 read -s PAT
 echo
@@ -90,7 +149,9 @@ cd "$REPO_DIR"
 if git clone "https://$PAT@github.com/joelagnel/joel-snips.git"; then
     log_info "joel-snips cloned successfully to $SNIPS_DIR"
 else
-    log_error "Failed to clone joel-snips repository. Check your PAT and try again."
+    log_error "Failed to clone joel-snips repository."
+    log_error "Ensure your PAT has 'Contents: Read' permission for the joel-snips repository."
+    log_error "For fine-grained tokens, verify 'joelagnel/joel-snips' repository access is granted."
     exit 1
 fi
 
