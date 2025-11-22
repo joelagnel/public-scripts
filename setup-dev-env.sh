@@ -39,6 +39,8 @@ PAT REQUIREMENTS:
     2. Choose resource access for 'joelagnel/joel-snips' repository
     3. Grant "Contents" permission with "Read and write" access
 
+    SECURITY NOTE: Delete the PAT immediately after running this script.
+
 WHAT IT DOES:
     - Updates package manager (apt update)
     - Installs ansible if not present
@@ -134,6 +136,7 @@ log_info "GitHub Personal Access Token required to clone joel-snips repository"
 echo "Generate one at: https://github.com/settings/personal-access-tokens"
 echo "Required permissions: Contents: Read/Write (for repository access)"
 echo "For fine-grained tokens: Select 'joelagnel/joel-snips' repository access"
+echo "IMPORTANT: Delete the PAT after this script completes!"
 echo -n "Enter your GitHub PAT: "
 read -s PAT
 echo
@@ -176,3 +179,6 @@ fi
 log_info "Development environment setup completed!"
 log_info "joel-snips is available at: $SNIPS_DIR"
 log_info "You can now run: cd $SNIPS_DIR && ./rcfiles/setuprc"
+echo
+log_warn "SECURITY REMINDER: Delete your GitHub PAT now that the script has completed."
+log_warn "Go to: https://github.com/settings/personal-access-tokens and revoke the token."

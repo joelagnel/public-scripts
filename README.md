@@ -26,6 +26,11 @@ Generate a Personal Access Token at: https://github.com/settings/personal-access
 2. Choose resource access for 'joelagnel/joel-snips' repository
 3. Grant "Contents" permission with "Read and write" access
 
+**Security Best Practice:**
+- Delete the PAT immediately after the script completes
+- Use short expiration times (1 hour or less recommended)
+- Revoke unused tokens regularly
+
 ## What it does
 
 - Updates package manager
