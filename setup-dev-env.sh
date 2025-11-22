@@ -6,10 +6,10 @@
 #
 # Prerequisites:
 # - Ubuntu/Debian system with sudo access
-# - GitHub Personal Access Token with Contents: Read permission for joel-snips repository
+# - GitHub Personal Access Token with Contents: Read/Write permission for joel-snips repository
 #
 # Generate PAT at: https://github.com/settings/personal-access-tokens
-# Required permissions: Contents: Read (for repository access)
+# Required permissions: Contents: Read/Write (for repository access)
 
 set -euo pipefail
 
@@ -30,14 +30,14 @@ PREREQUISITES:
 
 PAT REQUIREMENTS:
     You need a GitHub Personal Access Token with the following permissions:
-    - Contents: Read (to clone the joel-snips repository)
+    - Contents: Read/Write (to clone and push to the joel-snips repository)
 
     Generate a new PAT at: https://github.com/settings/personal-access-tokens
 
     For fine-grained tokens:
     1. Select "Fine-grained personal access tokens"
     2. Choose resource access for 'joelagnel/joel-snips' repository
-    3. Grant "Contents" permission with "Read" access
+    3. Grant "Contents" permission with "Read and write" access
 
 WHAT IT DOES:
     - Updates package manager (apt update)
@@ -132,7 +132,7 @@ fi
 # Prompt for GitHub PAT
 log_info "GitHub Personal Access Token required to clone joel-snips repository"
 echo "Generate one at: https://github.com/settings/personal-access-tokens"
-echo "Required permissions: Contents: Read (for repository access)"
+echo "Required permissions: Contents: Read/Write (for repository access)"
 echo "For fine-grained tokens: Select 'joelagnel/joel-snips' repository access"
 echo -n "Enter your GitHub PAT: "
 read -s PAT
@@ -150,7 +150,7 @@ if git clone "https://$PAT@github.com/joelagnel/joel-snips.git"; then
     log_info "joel-snips cloned successfully to $SNIPS_DIR"
 else
     log_error "Failed to clone joel-snips repository."
-    log_error "Ensure your PAT has 'Contents: Read' permission for the joel-snips repository."
+    log_error "Ensure your PAT has 'Contents: Read/Write' permission for the joel-snips repository."
     log_error "For fine-grained tokens, verify 'joelagnel/joel-snips' repository access is granted."
     exit 1
 fi
