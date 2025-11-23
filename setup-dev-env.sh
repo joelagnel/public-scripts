@@ -162,7 +162,7 @@ log_info "Vault password saved for ansible playbook (will be deleted after setup
 echo
 
 log_info "Updating package manager..."
-sudo apt update
+sudo DEBIAN_FRONTEND=noninteractive apt update
 
 log_info "Installing ansible (with full collections and Jinja2 compatibility)..."
 
@@ -183,11 +183,11 @@ else
 fi
 
 if [ "$ANSIBLE_NEEDS_INSTALL" = true ]; then
-    sudo apt update
+    sudo DEBIAN_FRONTEND=noninteractive apt update
     # Remove any conflicting system packages
     sudo apt remove -y ansible ansible-core 2>/dev/null || true
-    # Install python3-pip if not present
-    sudo apt install -y python3-pip
+    # Install python3-pip if not present (non-interactive)
+    sudo DEBIAN_FRONTEND=noninteractive apt install -y python3-pip
     # Install ansible via pip for latest version with all collections
     pip3 install --user ansible
     # Add ~/.local/bin to PATH if not already there
