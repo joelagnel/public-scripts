@@ -172,6 +172,28 @@ case "$REVOKE_RESPONSE" in
         ;;
 esac
 
+# Prompt for email setup choice
+log_info "Email setup option"
+echo "This can configure complete email setup including:"
+echo "  - Personal mail (joel@joelfernandes.org)"
+echo "  - NVIDIA work email (joelagnelf@nvidia.com)"
+echo "  - OAuth2 authentication, mail sync, and cron jobs"
+echo "Choose this only if you need email configured on this machine."
+echo -n "Enable email setup? [y/N]: "
+read -r EMAIL_RESPONSE
+echo
+
+case "$EMAIL_RESPONSE" in
+    [yY][eE][sS]|[yY])
+        ENABLE_EMAIL="true"
+        log_info "Email setup will be configured"
+        ;;
+    *)
+        ENABLE_EMAIL="false"
+        log_info "Email setup will be skipped"
+        ;;
+esac
+
 echo
 echo "==============================================="
 echo "         AUTOMATED SETUP BEGINNING"
@@ -263,7 +285,7 @@ MAIN_PLAYBOOK="$ANSIBLE_DIR/main.yml"
 if [ -d "$ANSIBLE_DIR" ] && [ -f "$MAIN_PLAYBOOK" ]; then
     log_info "Running ansible setup playbook..."
     cd "$ANSIBLE_DIR"
-    if ansible-playbook main.yml -e "extract_revoke_cert=$EXTRACT_REVOKE"; then
+    if ansible-playbook main.yml -e "extract_revoke_cert=$EXTRACT_REVOKE" -e "enable_email=$ENABLE_EMAIL"; then
         log_info "Ansible setup completed successfully!"
     else
         log_warn "Ansible setup failed, but repository setup is complete"
