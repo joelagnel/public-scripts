@@ -1,6 +1,6 @@
 #!/bin/bash
 # Bootstrap script for setting up development environment
-# Installs ansible and clones joel-snips repository
+# Installs ansible, clones joel-snips repository, and runs ansible setup playbook
 #
 # Usage: ./setup-dev-env.sh [--help]
 #
@@ -18,7 +18,8 @@ show_help() {
 setup-dev-env.sh - Bootstrap development environment
 
 DESCRIPTION:
-    Sets up development environment by installing ansible and cloning the joel-snips repository.
+    Sets up development environment by installing ansible, cloning the joel-snips repository,
+    and running the ansible playbook to configure dotfiles and tools.
 
 USAGE:
     ./setup-dev-env.sh [--help]
@@ -47,7 +48,7 @@ WHAT IT DOES:
     - Creates ~/repo/ directory
     - Backs up existing joel-snips directory if present
     - Clones joel-snips repository using your PAT
-    - Runs ansible test playbook (if available)
+    - Runs ansible setup playbook to configure development environment (if available)
 
 OPTIONS:
     --help    Show this help message
@@ -101,12 +102,49 @@ fi
 log_info "Updating package manager..."
 sudo apt update
 
-log_info "Installing ansible..."
+log_info "Installing ansible (with full collections and Jinja2 compatibility)..."
+
+# Check if we have a compatible ansible version
+ANSIBLE_NEEDS_INSTALL=false
 if ! command -v ansible &> /dev/null; then
-    sudo apt install -y ansible
-    log_info "Ansible installed successfully"
+    ANSIBLE_NEEDS_INSTALL=true
+    log_info "Ansible not found, will install via pip"
 else
-    log_info "Ansible is already installed"
+    # Check if it's the pip version by checking location
+    ANSIBLE_PATH=$(which ansible)
+    if [[ "$ANSIBLE_PATH" != *"$HOME/.local/bin/ansible"* ]]; then
+        log_info "Found system ansible, switching to pip version for better compatibility"
+        ANSIBLE_NEEDS_INSTALL=true
+    else
+        log_info "Ansible pip version already installed at $ANSIBLE_PATH"
+    fi
+fi
+
+if [ "$ANSIBLE_NEEDS_INSTALL" = true ]; then
+    sudo apt update
+    # Remove any conflicting system packages
+    sudo apt remove -y ansible ansible-core 2>/dev/null || true
+    # Install ansible via pip for latest version with all collections
+    pip3 install --user ansible
+    # Add ~/.local/bin to PATH if not already there
+    if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc 2>/dev/null || true
+    fi
+    # Update PATH for current session
+    export PATH="$HOME/.local/bin:$PATH"
+    log_info "Ansible installed successfully via pip"
+fi
+
+# Ensure essential collections are installed
+log_info "Installing/updating ansible collections..."
+if command -v ansible-galaxy &> /dev/null; then
+    ansible-galaxy collection install community.general --upgrade 2>/dev/null || \
+        log_warn "Could not install community.general collection (may already be present)"
+    ansible-galaxy collection install ansible.posix --upgrade 2>/dev/null || \
+        log_warn "Could not install ansible.posix collection (may already be present)"
+else
+    log_warn "ansible-galaxy not available, collections may need manual installation"
 fi
 
 # Create ~/repo directory if it doesn't exist
@@ -161,24 +199,30 @@ fi
 # Clear PAT from memory
 unset PAT
 
-# Check if test playbook exists and run it
-TEST_PLAYBOOK="$SNIPS_DIR/test-playbook.yml"
-if [ -f "$TEST_PLAYBOOK" ]; then
-    log_info "Running ansible test playbook..."
-    cd "$SNIPS_DIR"
-    if ansible-playbook test-playbook.yml; then
-        log_info "Ansible test completed successfully!"
+# Check if ansible playbook exists and run it
+ANSIBLE_DIR="$SNIPS_DIR/rcfiles/ansible"
+MAIN_PLAYBOOK="$ANSIBLE_DIR/main.yml"
+if [ -d "$ANSIBLE_DIR" ] && [ -f "$MAIN_PLAYBOOK" ]; then
+    log_info "Running ansible setup playbook..."
+    cd "$ANSIBLE_DIR"
+    if ansible-playbook main.yml; then
+        log_info "Ansible setup completed successfully!"
     else
-        log_warn "Ansible test failed, but setup is complete"
+        log_warn "Ansible setup failed, but repository setup is complete"
+        log_info "You can run the playbook manually later: cd $ANSIBLE_DIR && ansible-playbook main.yml"
     fi
 else
-    log_warn "No test playbook found at $TEST_PLAYBOOK"
-    log_info "You can create one later to test ansible functionality"
+    log_warn "No ansible playbook found at $ANSIBLE_DIR/main.yml"
+    log_info "You can run the legacy setup instead: cd $SNIPS_DIR && ./rcfiles/setuprc"
 fi
 
 log_info "Development environment setup completed!"
 log_info "joel-snips is available at: $SNIPS_DIR"
-log_info "You can now run: cd $SNIPS_DIR && ./rcfiles/setuprc"
+if [ -d "$ANSIBLE_DIR" ] && [ -f "$MAIN_PLAYBOOK" ]; then
+    log_info "To run setup again: cd $ANSIBLE_DIR && ansible-playbook main.yml"
+else
+    log_info "To run legacy setup: cd $SNIPS_DIR && ./rcfiles/setuprc"
+fi
 echo
 log_warn "SECURITY REMINDER: Delete your GitHub PAT now that the script has completed."
 log_warn "Go to: https://github.com/settings/personal-access-tokens and revoke the token."
