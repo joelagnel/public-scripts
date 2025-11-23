@@ -13,6 +13,15 @@
 
 set -euo pipefail
 
+# Cleanup function to remove sensitive files on exit
+cleanup() {
+    if [ -f "$HOME/.vault_pass" ]; then
+        rm -f "$HOME/.vault_pass"
+        log_info "Cleaned up vault password file"
+    fi
+}
+trap cleanup EXIT
+
 show_help() {
     cat << EOF
 setup-dev-env.sh - Bootstrap development environment
@@ -99,6 +108,59 @@ if ! sudo -n true 2>/dev/null; then
     log_info "This script requires sudo privileges. You may be prompted for your password."
 fi
 
+echo
+echo "==============================================="
+echo "           CREDENTIAL COLLECTION"
+echo "==============================================="
+echo
+log_info "All credentials will be collected upfront so you can relax while the setup runs!"
+echo
+
+# Prompt for GitHub PAT early
+log_info "GitHub Personal Access Token required to clone joel-snips repository"
+echo "Generate one at: https://github.com/settings/personal-access-tokens"
+echo "Required permissions: Contents: Read/Write (for repository access)"
+echo "For fine-grained tokens: Select 'joelagnel/joel-snips' repository access"
+echo "IMPORTANT: Delete the PAT after this script completes!"
+echo -n "Enter your GitHub PAT: "
+read -s PAT
+echo
+
+if [ -z "$PAT" ]; then
+    log_error "PAT cannot be empty"
+    exit 1
+fi
+
+echo
+# Prompt for Ansible Vault password early
+log_info "Ansible Vault password required for decrypting SSH/GPG keys"
+echo "This will be used later during the ansible setup to decrypt your key archive."
+echo -n "Enter Ansible Vault password: "
+read -s VAULT_PASSWORD
+echo
+
+if [ -z "$VAULT_PASSWORD" ]; then
+    log_error "Vault password cannot be empty"
+    exit 1
+fi
+
+# Save vault password to temporary file for ansible playbook
+VAULT_PASS_FILE="$HOME/.vault_pass"
+echo "$VAULT_PASSWORD" > "$VAULT_PASS_FILE"
+chmod 600 "$VAULT_PASS_FILE"
+
+# Clear vault password from memory
+unset VAULT_PASSWORD
+
+echo
+echo "==============================================="
+echo "         AUTOMATED SETUP BEGINNING"
+echo "==============================================="
+echo
+log_info "All credentials collected! You can now relax while the setup completes."
+log_info "Vault password saved for ansible playbook (will be deleted after setup)"
+echo
+
 log_info "Updating package manager..."
 sudo apt update
 
@@ -169,21 +231,6 @@ if [ -d "$SNIPS_DIR" ]; then
     fi
 fi
 
-# Prompt for GitHub PAT
-log_info "GitHub Personal Access Token required to clone joel-snips repository"
-echo "Generate one at: https://github.com/settings/personal-access-tokens"
-echo "Required permissions: Contents: Read/Write (for repository access)"
-echo "For fine-grained tokens: Select 'joelagnel/joel-snips' repository access"
-echo "IMPORTANT: Delete the PAT after this script completes!"
-echo -n "Enter your GitHub PAT: "
-read -s PAT
-echo
-
-if [ -z "$PAT" ]; then
-    log_error "PAT cannot be empty"
-    exit 1
-fi
-
 # Clone joel-snips repository
 log_info "Cloning joel-snips repository..."
 cd "$REPO_DIR"
@@ -226,3 +273,5 @@ fi
 echo
 log_warn "SECURITY REMINDER: Delete your GitHub PAT now that the script has completed."
 log_warn "Go to: https://github.com/settings/personal-access-tokens and revoke the token."
+echo
+log_info "Vault password file has been automatically cleaned up."
