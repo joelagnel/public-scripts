@@ -166,38 +166,21 @@ sudo DEBIAN_FRONTEND=noninteractive apt update
 
 log_info "Installing ansible (with full collections and Jinja2 compatibility)..."
 
-# Check if we have a compatible ansible version
+# Check if we have ansible installed
 ANSIBLE_NEEDS_INSTALL=false
 if ! command -v ansible &> /dev/null; then
     ANSIBLE_NEEDS_INSTALL=true
-    log_info "Ansible not found, will install via pip"
+    log_info "Ansible not found, will install via apt"
 else
-    # Check if it's the pip version by checking location
     ANSIBLE_PATH=$(which ansible)
-    if [[ "$ANSIBLE_PATH" != *"$HOME/.local/bin/ansible"* ]]; then
-        log_info "Found system ansible, switching to pip version for better compatibility"
-        ANSIBLE_NEEDS_INSTALL=true
-    else
-        log_info "Ansible pip version already installed at $ANSIBLE_PATH"
-    fi
+    log_info "Ansible already installed at $ANSIBLE_PATH"
 fi
 
 if [ "$ANSIBLE_NEEDS_INSTALL" = true ]; then
     sudo DEBIAN_FRONTEND=noninteractive apt update
-    # Remove any conflicting system packages
-    sudo apt remove -y ansible ansible-core 2>/dev/null || true
-    # Install python3-pip if not present (non-interactive)
-    sudo DEBIAN_FRONTEND=noninteractive apt install -y python3-pip
-    # Install ansible via pip for latest version with all collections
-    pip3 install --user ansible
-    # Add ~/.local/bin to PATH if not already there
-    if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
-        echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-        echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc 2>/dev/null || true
-    fi
-    # Update PATH for current session
-    export PATH="$HOME/.local/bin:$PATH"
-    log_info "Ansible installed successfully via pip"
+    # Install ansible via apt (handles PEP 668 restrictions)
+    sudo DEBIAN_FRONTEND=noninteractive apt install -y ansible
+    log_info "Ansible installed successfully via apt"
 fi
 
 # Ensure essential collections are installed
