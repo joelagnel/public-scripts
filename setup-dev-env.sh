@@ -153,6 +153,26 @@ chmod 600 "$VAULT_PASS_FILE"
 unset VAULT_PASSWORD
 
 echo
+# Prompt for GPG revocation certificate extraction choice
+log_info "GPG revocation certificate option"
+echo "The GPG key archive contains a revocation certificate that can be extracted."
+echo "This should only be extracted if you plan to revoke your GPG key later."
+echo -n "Extract GPG revocation certificate? [y/N]: "
+read -r REVOKE_RESPONSE
+echo
+
+case "$REVOKE_RESPONSE" in
+    [yY][eE][sS]|[yY])
+        EXTRACT_REVOKE="true"
+        log_info "Revocation certificate will be extracted during setup"
+        ;;
+    *)
+        EXTRACT_REVOKE="false"
+        log_info "Revocation certificate will be skipped"
+        ;;
+esac
+
+echo
 echo "==============================================="
 echo "         AUTOMATED SETUP BEGINNING"
 echo "==============================================="
@@ -221,6 +241,12 @@ log_info "Cloning joel-snips repository..."
 cd "$REPO_DIR"
 if git clone "https://$PAT@github.com/joelagnel/joel-snips.git"; then
     log_info "joel-snips cloned successfully to $SNIPS_DIR"
+
+    # Change remote URL from HTTPS to SSH for future operations after PAT deletion
+    cd "$SNIPS_DIR"
+    git remote set-url origin git@github.com:joelagnel/joel-snips.git
+    log_info "Git remote URL changed to SSH for continued functionality"
+    cd "$REPO_DIR"
 else
     log_error "Failed to clone joel-snips repository."
     log_error "Ensure your PAT has 'Contents: Read/Write' permission for the joel-snips repository."
@@ -237,7 +263,7 @@ MAIN_PLAYBOOK="$ANSIBLE_DIR/main.yml"
 if [ -d "$ANSIBLE_DIR" ] && [ -f "$MAIN_PLAYBOOK" ]; then
     log_info "Running ansible setup playbook..."
     cd "$ANSIBLE_DIR"
-    if ansible-playbook main.yml; then
+    if ansible-playbook main.yml -e "extract_revoke_cert=$EXTRACT_REVOKE"; then
         log_info "Ansible setup completed successfully!"
     else
         log_warn "Ansible setup failed, but repository setup is complete"
