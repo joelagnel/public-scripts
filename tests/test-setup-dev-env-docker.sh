@@ -11,10 +11,11 @@ set -euo pipefail
 # Configuration
 TMUX_SESSION="setup-dev-env-test"
 CONTAINER_NAME="setup-dev-env-test-container"
-UBUNTU_IMAGE="ubuntu:24.04"
+DOCKER_IMAGE="setup-test-env"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PUBLIC_SCRIPTS_DIR="$(dirname "$SCRIPT_DIR")"
 HOST_REPO_DIR="$(dirname "$PUBLIC_SCRIPTS_DIR")"
+DOCKERFILE_PATH="$SCRIPT_DIR/Dockerfile.setup-test"
 
 # Colors for output
 RED='\033[0;31m'
@@ -61,6 +62,12 @@ cleanup() {
     else
         log_info "No matching containers found to clean up"
     fi
+
+    # Remove test Docker image if it exists
+    if docker images | grep -q "$DOCKER_IMAGE"; then
+        docker rmi "$DOCKER_IMAGE" >/dev/null 2>&1 || true
+        log_info "Removed Docker image: $DOCKER_IMAGE"
+    fi
 }
 
 setup_test_environment() {
@@ -69,45 +76,36 @@ setup_test_environment() {
     # Cleanup any existing test environment
     cleanup
 
+    # Build Docker image with test user
+    log_info "Building Docker image with test user environment..."
+    if ! docker build -t "$DOCKER_IMAGE" -f "$DOCKERFILE_PATH" "$SCRIPT_DIR"; then
+        log_error "Failed to build Docker image"
+        exit 1
+    fi
+    log_success "Built Docker image: $DOCKER_IMAGE"
+
     # Create new tmux session
     tmux new-session -d -s "$TMUX_SESSION" -c "$PUBLIC_SCRIPTS_DIR"
     log_success "Created tmux session: $TMUX_SESSION"
 
-    # Start container with volume mounts for testing
+    # Start container (no volume mounts - public-scripts cloned during build)
     tmux send-keys -t "$TMUX_SESSION" "docker run -it --name $CONTAINER_NAME \
-        -v \"$HOST_REPO_DIR:/mnt/host-repo:ro\" \
-        -w /root \
-        $UBUNTU_IMAGE /bin/bash" Enter
+        -w /home/testuser/public-scripts \
+        $DOCKER_IMAGE /bin/bash" Enter
 
-    log_success "Started container: $CONTAINER_NAME"
+    log_success "Started container: $CONTAINER_NAME as testuser (public-scripts cloned in image)"
 
     # Wait for container to be ready
     sleep 3
-
-    # Update package list and install basic dependencies
-    tmux send-keys -t "$TMUX_SESSION" "apt-get update && apt-get install -y git curl wget sudo" Enter
-
-    # Wait for package installation
-    log_info "Installing basic packages in container..."
-    sleep 8
-
-    # Copy the public-scripts to container for testing
-    tmux send-keys -t "$TMUX_SESSION" "cp -r /mnt/host-repo/public-scripts /root/" Enter
-    sleep 2
-
-    # Copy joel-snips for ansible to have access to it
-    tmux send-keys -t "$TMUX_SESSION" "cp -r /mnt/host-repo/joel-snips /root/repo/" Enter
-    sleep 2
 }
 
 run_setup_test() {
     log_info "Starting setup-dev-env test in container..."
 
-    # Navigate to public-scripts and run setup-dev-env
-    tmux send-keys -t "$TMUX_SESSION" "cd /root/public-scripts" Enter
+    # Run setup-dev-env as testuser (already in correct directory)
     tmux send-keys -t "$TMUX_SESSION" "./setup-dev-env.sh" Enter
 
-    log_success "setup-dev-env.sh started in tmux session"
+    log_success "setup-dev-env.sh started in tmux session as testuser"
 }
 
 show_test_instructions() {
@@ -135,9 +133,11 @@ show_test_instructions() {
     echo -e "${YELLOW}Test Environment Details:${NC}"
     echo "- Container: $CONTAINER_NAME"
     echo "- Tmux Session: $TMUX_SESSION"
-    echo "- Ubuntu Image: $UBUNTU_IMAGE"
-    echo "- Host repo mounted at: /mnt/host-repo"
-    echo "- Testing in: /root/public-scripts"
+    echo "- Docker Image: $DOCKER_IMAGE (Ubuntu 24.04 + testuser)"
+    echo "- Test User: testuser (with sudo privileges)"
+    echo "- Public-scripts: Cloned during image build (latest from GitHub)"
+    echo "- Joel-snips: Will be cloned by setup-dev-env.sh naturally"
+    echo "- Testing directory: /home/testuser/public-scripts"
     echo
     echo "==============================================================================="
     echo
