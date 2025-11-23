@@ -186,6 +186,8 @@ if [ "$ANSIBLE_NEEDS_INSTALL" = true ]; then
     sudo apt update
     # Remove any conflicting system packages
     sudo apt remove -y ansible ansible-core 2>/dev/null || true
+    # Install python3-pip if not present
+    sudo apt install -y python3-pip
     # Install ansible via pip for latest version with all collections
     pip3 install --user ansible
     # Add ~/.local/bin to PATH if not already there
