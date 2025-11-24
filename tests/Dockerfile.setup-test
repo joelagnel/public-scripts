@@ -30,8 +30,8 @@ RUN usermod -aG sudo testuser && \
 USER testuser
 WORKDIR /home/testuser
 
-# Clone public-scripts repository during build
-RUN git clone https://github.com/joelagnel/public-scripts.git /home/testuser/public-scripts
+# Copy local public-scripts repository during build
+COPY --chown=testuser:testuser . /home/testuser/public-scripts
 
 # Set the working directory to where setup-dev-env.sh will run
 WORKDIR /home/testuser/public-scripts

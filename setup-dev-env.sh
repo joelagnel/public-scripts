@@ -31,7 +31,7 @@ DESCRIPTION:
     and running the ansible playbook to configure dotfiles and tools.
 
 USAGE:
-    ./setup-dev-env.sh [--help]
+    ./setup-dev-env.sh [--help] [--defaults]
 
 PREREQUISITES:
     - Ubuntu/Debian system with sudo access
@@ -60,18 +60,35 @@ WHAT IT DOES:
     - Runs ansible setup playbook to configure development environment (if available)
 
 OPTIONS:
-    --help    Show this help message
+    --help       Show this help message
+    --defaults   Use default values for optional prompts (non-interactive mode)
+                 Defaults: YCM=no, email=no, revoke_cert=no
+                 Still prompts for mandatory credentials (GitHub PAT, Vault password)
 
 AUTHOR:
     Joel Fernandes <joel@joelfernandes.org>
 EOF
 }
 
-# Check for help flag
-if [[ "${1:-}" == "--help" ]]; then
-    show_help
-    exit 0
-fi
+# Parse arguments
+USE_DEFAULTS=false
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --help)
+            show_help
+            exit 0
+            ;;
+        --defaults)
+            USE_DEFAULTS=true
+            shift
+            ;;
+        *)
+            echo "Error: Unknown option $1"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
 
 # Colors for output
 RED='\033[0;31m'
@@ -155,44 +172,82 @@ unset VAULT_PASSWORD
 echo
 # Prompt for GPG revocation certificate extraction choice
 log_info "GPG revocation certificate option"
-echo "The GPG key archive contains a revocation certificate that can be extracted."
-echo "This should only be extracted if you plan to revoke your GPG key later."
-echo -n "Extract GPG revocation certificate? [y/N]: "
-read -r REVOKE_RESPONSE
-echo
+if [ "$USE_DEFAULTS" = true ]; then
+    EXTRACT_REVOKE="false"
+    log_info "Using default: Revocation certificate will be skipped"
+else
+    echo "The GPG key archive contains a revocation certificate that can be extracted."
+    echo "This should only be extracted if you plan to revoke your GPG key later."
+    echo -n "Extract GPG revocation certificate? [y/N]: "
+    read -r REVOKE_RESPONSE
+    echo
 
-case "$REVOKE_RESPONSE" in
-    [yY][eE][sS]|[yY])
-        EXTRACT_REVOKE="true"
-        log_info "Revocation certificate will be extracted during setup"
-        ;;
-    *)
-        EXTRACT_REVOKE="false"
-        log_info "Revocation certificate will be skipped"
-        ;;
-esac
+    case "$REVOKE_RESPONSE" in
+        [yY][eE][sS]|[yY])
+            EXTRACT_REVOKE="true"
+            log_info "Revocation certificate will be extracted during setup"
+            ;;
+        *)
+            EXTRACT_REVOKE="false"
+            log_info "Revocation certificate will be skipped"
+            ;;
+    esac
+fi
 
 # Prompt for email setup choice
 log_info "Email setup option"
-echo "This can configure complete email setup including:"
-echo "  - Personal mail (joel@joelfernandes.org)"
-echo "  - NVIDIA work email (joelagnelf@nvidia.com)"
-echo "  - OAuth2 authentication, mail sync, and cron jobs"
-echo "Choose this only if you need email configured on this machine."
-echo -n "Enable email setup? [y/N]: "
-read -r EMAIL_RESPONSE
-echo
+if [ "$USE_DEFAULTS" = true ]; then
+    ENABLE_EMAIL="false"
+    log_info "Using default: Email setup will be skipped"
+else
+    echo "This can configure complete email setup including:"
+    echo "  - Personal mail (joel@joelfernandes.org)"
+    echo "  - NVIDIA work email (joelagnelf@nvidia.com)"
+    echo "  - OAuth2 authentication, mail sync, and cron jobs"
+    echo "Choose this only if you need email configured on this machine."
+    echo -n "Enable email setup? [y/N]: "
+    read -r EMAIL_RESPONSE
+    echo
 
-case "$EMAIL_RESPONSE" in
-    [yY][eE][sS]|[yY])
-        ENABLE_EMAIL="true"
-        log_info "Email setup will be configured"
-        ;;
-    *)
-        ENABLE_EMAIL="false"
-        log_info "Email setup will be skipped"
-        ;;
-esac
+    case "$EMAIL_RESPONSE" in
+        [yY][eE][sS]|[yY])
+            ENABLE_EMAIL="true"
+            log_info "Email setup will be configured"
+            ;;
+        *)
+            ENABLE_EMAIL="false"
+            log_info "Email setup will be skipped"
+            ;;
+    esac
+fi
+
+# Prompt for YouCompleteMe installation choice
+echo
+log_info "Vim YouCompleteMe option"
+if [ "$USE_DEFAULTS" = true ]; then
+    INSTALL_YCM="false"
+    log_info "Using default: YouCompleteMe will be skipped"
+else
+    echo "YouCompleteMe provides advanced code completion for vim including:"
+    echo "  - Intelligent autocomplete for C/C++, Python, Go, and more"
+    echo "  - Semantic analysis and error detection"
+    echo "  - Integration with clang for C/C++ development"
+    echo "Note: Installation requires compilation and takes ~5 minutes"
+    echo -n "Install YouCompleteMe for vim? [y/N]: "
+    read -r YCM_RESPONSE
+    echo
+
+    case "$YCM_RESPONSE" in
+        [yY][eE][sS]|[yY])
+            INSTALL_YCM="true"
+            log_info "YouCompleteMe will be compiled and installed"
+            ;;
+        *)
+            INSTALL_YCM="false"
+            log_info "YouCompleteMe will be skipped"
+            ;;
+    esac
+fi
 
 echo
 echo "==============================================="
@@ -285,7 +340,7 @@ MAIN_PLAYBOOK="$ANSIBLE_DIR/main.yml"
 if [ -d "$ANSIBLE_DIR" ] && [ -f "$MAIN_PLAYBOOK" ]; then
     log_info "Running ansible setup playbook..."
     cd "$ANSIBLE_DIR"
-    if ansible-playbook main.yml -e "extract_revoke_cert=$EXTRACT_REVOKE" -e "enable_email=$ENABLE_EMAIL"; then
+    if ansible-playbook main.yml -e "extract_revoke_cert=$EXTRACT_REVOKE" -e "enable_email=$ENABLE_EMAIL" -e "install_ycm=$INSTALL_YCM"; then
         log_info "Ansible setup completed successfully!"
     else
         log_warn "Ansible setup failed, but repository setup is complete"

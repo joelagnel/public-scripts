@@ -13,6 +13,7 @@ TMUX_SESSION="setup-dev-env-test"
 CONTAINER_NAME="setup-dev-env-test-container"
 DOCKER_IMAGE="setup-test-env"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+NO_CACHE=""
 
 # Colors for output
 RED='\033[0;31m'
@@ -72,8 +73,12 @@ check_prerequisites() {
 }
 
 build_docker_image() {
-    log_info "Building Docker image with test user environment..."
-    if ! docker build -t "$DOCKER_IMAGE" -f "$SCRIPT_DIR/Dockerfile.setup-test" "$SCRIPT_DIR"; then
+    if [[ -n "$NO_CACHE" ]]; then
+        log_info "Building Docker image with test user environment (--no-cache)..."
+    else
+        log_info "Building Docker image with test user environment..."
+    fi
+    if ! docker build $NO_CACHE -t "$DOCKER_IMAGE" -f "$SCRIPT_DIR/Dockerfile.setup-test" "$SCRIPT_DIR/.."; then
         log_error "Failed to build Docker image"
         exit 1
     fi
@@ -239,17 +244,31 @@ main() {
     trap cleanup EXIT
     trap cleanup SIGTERM SIGINT
 
-    # Show help if requested
-    if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-        echo "Usage: $0"
-        echo
-        echo "Standalone Docker test for setup-dev-env.sh"
-        echo "Creates fresh Ubuntu container with testuser and runs setup-dev-env"
-        echo
-        echo "Options:"
-        echo "  -h, --help    Show this help"
-        exit 0
-    fi
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --no-cache)
+                NO_CACHE="--no-cache"
+                shift
+                ;;
+            -h|--help)
+                echo "Usage: $0 [OPTIONS]"
+                echo
+                echo "Standalone Docker test for setup-dev-env.sh"
+                echo "Creates fresh Ubuntu container with testuser and runs setup-dev-env"
+                echo
+                echo "Options:"
+                echo "  --no-cache    Force rebuild Docker image without using cache"
+                echo "  -h, --help    Show this help"
+                exit 0
+                ;;
+            *)
+                echo "Unknown option: $1"
+                echo "Use --help for usage information"
+                exit 1
+                ;;
+        esac
+    done
 
     # Run test
     setup_test_environment
