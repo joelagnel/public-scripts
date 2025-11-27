@@ -319,10 +319,10 @@ cd "$REPO_DIR"
 if git clone "https://$PAT@github.com/joelagnel/joel-snips.git"; then
     log_info "joel-snips cloned successfully to $SNIPS_DIR"
 
-    # Change remote URL from HTTPS to SSH for future operations after PAT deletion
+    # Remove PAT from remote URL but keep HTTPS (SSH switch happens after ansible succeeds)
     cd "$SNIPS_DIR"
-    git remote set-url origin git@github.com:joelagnel/joel-snips.git
-    log_info "Git remote URL changed to SSH for continued functionality"
+    git remote set-url origin https://github.com/joelagnel/joel-snips.git
+    log_info "Git remote URL set to HTTPS (will switch to SSH after keys are installed)"
     cd "$REPO_DIR"
 else
     log_error "Failed to clone joel-snips repository."
@@ -342,6 +342,11 @@ if [ -d "$ANSIBLE_DIR" ] && [ -f "$MAIN_PLAYBOOK" ]; then
     cd "$ANSIBLE_DIR"
     if ansible-playbook main.yml -e "extract_revoke_cert=$EXTRACT_REVOKE" -e "enable_email=$ENABLE_EMAIL" -e "install_ycm=$INSTALL_YCM"; then
         log_info "Ansible setup completed successfully!"
+        # Now that SSH keys are installed, switch to SSH remote
+        cd "$SNIPS_DIR"
+        git remote set-url origin git@github.com:joelagnel/joel-snips.git
+        log_info "Git remote URL switched to SSH"
+        cd "$ANSIBLE_DIR"
     else
         log_warn "Ansible setup failed, but repository setup is complete"
         log_info "You can run the playbook manually later: cd $ANSIBLE_DIR && ansible-playbook main.yml"
