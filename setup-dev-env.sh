@@ -62,7 +62,7 @@ WHAT IT DOES:
 OPTIONS:
     --help       Show this help message
     --defaults   Use default values for optional prompts (non-interactive mode)
-                 Defaults: YCM=no, email=no, revoke_cert=no
+                 Defaults: YCM=no, email=no, revoke_cert=no, nvpn=no
                  Still prompts for mandatory credentials (GitHub PAT, Vault password)
 
 AUTHOR:
@@ -249,6 +249,34 @@ else
     esac
 fi
 
+# Prompt for NVIDIA VPN (nvpn) installation choice
+echo
+log_info "NVIDIA OpenConnect VPN option"
+if [ "$USE_DEFAULTS" = true ]; then
+    INSTALL_NVPN="false"
+    log_info "Using default: NVIDIA VPN will be skipped"
+else
+    echo "NVIDIA OpenConnect VPN (nvpn) provides:"
+    echo "  - VPN connectivity to NVIDIA network via OpenConnect"
+    echo "  - SAML SSO authentication with cookie persistence"
+    echo "  - Works over SSH with port forwarding for headless servers"
+    echo "Only needed for NVIDIA employees accessing internal resources."
+    echo -n "Install NVIDIA VPN (nvpn)? [y/N]: "
+    read -r NVPN_RESPONSE
+    echo
+
+    case "$NVPN_RESPONSE" in
+        [yY][eE][sS]|[yY])
+            INSTALL_NVPN="true"
+            log_info "NVIDIA VPN will be installed"
+            ;;
+        *)
+            INSTALL_NVPN="false"
+            log_info "NVIDIA VPN will be skipped"
+            ;;
+    esac
+fi
+
 echo
 echo "==============================================="
 echo "         AUTOMATED SETUP BEGINNING"
@@ -340,7 +368,7 @@ MAIN_PLAYBOOK="$ANSIBLE_DIR/main.yml"
 if [ -d "$ANSIBLE_DIR" ] && [ -f "$MAIN_PLAYBOOK" ]; then
     log_info "Running ansible setup playbook..."
     cd "$ANSIBLE_DIR"
-    if ansible-playbook main.yml -e "extract_revoke_cert=$EXTRACT_REVOKE" -e "enable_email=$ENABLE_EMAIL" -e "install_ycm=$INSTALL_YCM"; then
+    if ansible-playbook main.yml -e "extract_revoke_cert=$EXTRACT_REVOKE" -e "enable_email=$ENABLE_EMAIL" -e "install_ycm=$INSTALL_YCM" -e "nvpn_install=$INSTALL_NVPN"; then
         log_info "Ansible setup completed successfully!"
         # Now that SSH keys are installed, switch to SSH remote
         cd "$SNIPS_DIR"
